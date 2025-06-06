@@ -1,12 +1,142 @@
 # Sistema de Monitoramento e Prevenção de Enchentes - Global Solution 2025.1
 # Disciplina: Computational Thinking Using Python
-# Grupo: [INCLUA AQUI OS NOMES E RMs DOS INTEGRANTES]
+# Grupo: [Bruno Scuciato:562159 | João Paulo: 565383 | kelwin Silva: 566348]
 # Data: Maio 2025
 
 import datetime
+from twilio.rest import Client
 
+# =================== CONFIGURAÇÕES WHATSAPP ===================
 
-# =================== CLASSES E ESTRUTURAS DE DADOS ===================
+# Configurações do Twilio para WhatsApp Sandbox (substitua pelos seus dados reais)
+# VOCÊ PEGA ISSO NO SEU CONSOLE TWILIO, NA SEÇÃO DO WHATSAPP SANDBOX
+TWILIO_ACCOUNT_SID = 'your_account_sid_here' # MESMO SID DA SUA CONTA TWILIO
+TWILIO_AUTH_TOKEN = 'your_auth_token_here' # MESMO TOKEN DA SUA CONTA TWILIO
+TWILIO_WHATSAPP_SANDBOX_NUMBER = 'whatsapp:+14155238886' # ESTE É O NÚMERO DO SANDBOX TWILIO (GERALMENTE FIXO)
+WHATSAPP_SANDBOX_JOIN_CODE = 'join word-word-word' # CÓDIGO QUE USUÁRIOS PRECISAM ENVIAR PARA O SANDBOX
+
+# Lista de contatos para emergência (devem ter enviado a mensagem JOIN para o Sandbox primeiro)
+EMERGENCY_CONTACTS_WHATSAPP = [
+    'whatsapp:+5511999999999',  # Seu WhatsApp (precisa ter enviado o código JOIN)
+    'whatsapp:+5511888888888',  # WhatsApp da Defesa Civil (precisa ter enviado o código JOIN)
+    # Adicione mais números conforme necessário, no formato 'whatsapp:+55DDDNUMERO'
+]
+
+def enviar_whatsapp(mensagem, numero_destino=None):
+    """
+    Envia mensagem via WhatsApp usando Twilio Sandbox
+    Parâmetros:
+        mensagem: texto da mensagem
+        numero_destino: número de destino no formato 'whatsapp:+55DDDNUMERO' (opcional, usa o primeiro contato de emergência se não especificado)
+    Retorna:
+        bool: True se enviado com sucesso, False caso contrário
+    """
+    try:
+        # Inicializar cliente Twilio
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        
+        # Usar número padrão se não especificado
+        if numero_destino is None:
+            # Pegar o primeiro número da lista de contatos de emergência para o teste
+            if EMERGENCY_CONTACTS_WHATSAPP:
+                numero_destino = EMERGENCY_CONTACTS_WHATSAPP[0]
+            else:
+                print("❌ Nenhum contato de WhatsApp de emergência configurado.")
+                return False
+        
+        # Enviar mensagem via WhatsApp
+        message = client.messages.create(
+            from_=TWILIO_WHATSAPP_SANDBOX_NUMBER,
+            body=mensagem,
+            to=numero_destino
+        )
+        
+        print(f"✅ Mensagem WhatsApp enviada com sucesso! ID: {message.sid}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro ao enviar mensagem WhatsApp: {str(e)}")
+        print("Certifique-se de que o contato de destino enviou a mensagem de adesão ao Sandbox.")
+        return False
+
+def enviar_alerta_critico_whatsapp(registro):
+    """
+    Envia alerta WhatsApp para situações críticas
+    Parâmetros:
+        registro: objeto RegistroEnchente com situação crítica
+    """
+    mensagem = f"""
+🚨 ALERTA CRÍTICO - ENCHENTE 🚨
+
+📍 Região: {registro.regiao}
+📅 Data: {registro.data.strftime('%d/%m/%Y %H:%M')}
+💧 Nível: {registro.nivel_agua:.1f}m
+🌧️ Chuva: {registro.precipitacao:.0f}mm
+👥 Afetados: {registro.populacao_afetada:,}
+⚠️ Risco: {registro.risco}
+
+Ação imediata necessária!
+Sistema de Monitoramento
+""".strip()
+    
+    # Enviar para todos os contatos de emergência do WhatsApp
+    for contato in EMERGENCY_CONTACTS_WHATSAPP:
+        enviar_whatsapp(mensagem, contato)
+
+def configurar_twilio_whatsapp():
+    """
+    Permite ao usuário configurar as credenciais do Twilio para WhatsApp
+    """
+    print("\n📱 CONFIGURAÇÃO DO TWILIO WHATSAPP SANDBOX")
+    print("=" * 40)
+    print("Para testar o envio de mensagens WhatsApp:")
+    print("1. Vá para o console Twilio -> Develop -> Messaging -> Try it out -> WhatsApp Sandbox.")
+    print("2. Pegue o 'WhatsApp Sandbox Number' e o 'Your Sandbox Channel' (o código 'join...').")
+    print("3. Peça para os contatos de emergência enviarem este código para o número do Sandbox.")
+    
+    global TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_SANDBOX_NUMBER, WHATSAPP_SANDBOX_JOIN_CODE
+    
+    while True:
+        print("\n1. Configurar credenciais Twilio (WhatsApp Sandbox)")
+        print("2. Testar envio de mensagem WhatsApp")
+        print("3. Voltar ao menu principal")
+        
+        opcao = input("\nEscolha uma opção: ").strip()
+        
+        if opcao == "1":
+            TWILIO_ACCOUNT_SID = input("Account SID: ").strip()
+            TWILIO_AUTH_TOKEN = input("Auth Token: ").strip()
+            TWILIO_WHATSAPP_SANDBOX_NUMBER = input("Número WhatsApp Sandbox (ex: whatsapp:+14155238886): ").strip()
+            WHATSAPP_SANDBOX_JOIN_CODE = input("Código de adesão do Sandbox (ex: join word-word-word): ").strip()
+            # O ADMIN_PHONE_NUMBER agora seria parte de EMERGENCY_CONTACTS_WHATSAPP
+            
+            # Atualiza o primeiro contato de emergência com o número do admin para testar
+            admin_whatsapp = input("Seu WhatsApp (ex: +5511999999999, para teste inicial): ").strip()
+            if admin_whatsapp:
+                 # Adiciona o número do admin se não estiver na lista ou atualiza o primeiro.
+                if f"whatsapp:{admin_whatsapp}" not in EMERGENCY_CONTACTS_WHATSAPP:
+                    EMERGENCY_CONTACTS_WHATSAPP.insert(0, f"whatsapp:{admin_whatsapp}")
+                else: # Garante que o primeiro da lista é o do admin se já existir
+                    EMERGENCY_CONTACTS_WHATSAPP.remove(f"whatsapp:{admin_whatsapp}")
+                    EMERGENCY_CONTACTS_WHATSAPP.insert(0, f"whatsapp:{admin_whatsapp}")
+
+            print("✅ Configurações salvas! Lembre-se de enviar o código de adesão para o Sandbox.")
+            
+        elif opcao == "2":
+            if enviar_whatsapp("🧪 Teste do Sistema de Monitoramento de Enchentes - WhatsApp funcionando!"):
+                print("✅ Mensagem WhatsApp de teste enviada com sucesso!")
+                print("Lembre-se: o destinatário precisa ter enviado o código de adesão ao Sandbox.")
+            else:
+                print("❌ Falha no envio da mensagem WhatsApp de teste")
+                
+        elif opcao == "3":
+            break
+        else:
+            print("❌ Opção inválida!")
+
+# =================== CLASSES E ESTRUTURAS DE DADOS (Mantidas) ===================
+# ... (Resto do seu código, classes RegistroEnchente, validar_numero_float, etc.) ...
+# Certifique-se de que 'registros_enchentes' e 'regioes_brasil' estão definidos.
 
 class RegistroEnchente:
     """Classe para representar um registro de enchente"""
@@ -31,7 +161,7 @@ class RegistroEnchente:
             return "BAIXO"
 
 
-# =================== VARIÁVEIS GLOBAIS ===================
+# =================== VARIÁVEIS GLOBAIS (Mantidas, mas adaptando contatos de emergência) ===================
 
 # Lista para armazenar todos os registros de enchentes
 registros_enchentes = []
@@ -50,7 +180,7 @@ regioes_brasil = {
     "10": "Goiânia - GO"
 }
 
-# Dados de emergência para contatos
+# Dados de emergência para contatos (mantidos, mas não usados diretamente para o envio de mensagens)
 contatos_emergencia = {
     "Bombeiros": "193",
     "SAMU": "192",
@@ -58,9 +188,8 @@ contatos_emergencia = {
     "Polícia": "190"
 }
 
-
-# =================== FUNÇÕES DE VALIDAÇÃO ===================
-
+# =================== FUNÇÕES DE VALIDAÇÃO (Mantidas) ===================
+# ... (validar_numero_float, validar_numero_int, validar_opcao_menu) ...
 def validar_numero_float(valor_str, nome_campo, minimo=0, maximo=None):
     """
     Valida se uma string pode ser convertida para float dentro de um intervalo
@@ -122,9 +251,8 @@ def validar_opcao_menu(opcao_str, opcoes_validas):
     """
     return opcao_str.strip() in opcoes_validas
 
-
-# =================== FUNÇÕES DE ENTRADA DE DADOS ===================
-
+# =================== FUNÇÕES DE ENTRADA DE DADOS (Mantidas) ===================
+# ... (obter_regiao, obter_dados_enchente) ...
 def obter_regiao():
     """
     Solicita ao usuário a seleção de uma região
@@ -169,30 +297,30 @@ def obter_dados_enchente():
     # Obter nível da água
     while True:
         nivel_str = input("\n💧 Digite o nível da água (em metros): ").strip()
-        valido, nivel_agua = validar_numero_float(nivel_str, "Nível da água", 0, 10)
-        if valido:
+        validado, nivel_agua = validar_numero_float(nivel_str, "Nível da água", 0, 10)
+        if validado:
             break
 
     # Obter precipitação
     while True:
         precip_str = input("🌧️  Digite a precipitação (em mm): ").strip()
-        valido, precipitacao = validar_numero_float(precip_str, "Precipitação", 0, 500)
-        if valido:
+        validado, precipitacao = validar_numero_float(precip_str, "Precipitação", 0, 500)
+        if validado:
             break
 
     # Obter população afetada
     while True:
         pop_str = input("👥 Digite o número de pessoas afetadas: ").strip()
-        valido, populacao = validar_numero_int(pop_str, "População afetada", 0, 10000000)
-        if valido:
+        validado, populacao = validar_numero_int(pop_str, "População afetada", 0, 10000000)
+        if validado:
             break
 
     # Criar e retornar o registro
     return RegistroEnchente(regiao, nivel_agua, precipitacao, populacao)
 
 
-# =================== FUNÇÕES DE PROCESSAMENTO ===================
-
+# =================== FUNÇÕES DE PROCESSAMENTO (Mantidas) ===================
+# ... (calcular_estatisticas, filtrar_por_risco, buscar_por_regiao) ...
 def calcular_estatisticas():
     """
     Calcula estatísticas gerais dos registros de enchentes
@@ -254,8 +382,8 @@ def buscar_por_regiao(nome_regiao):
     return [r for r in registros_enchentes if nome_regiao_lower in r.regiao.lower()]
 
 
-# =================== FUNÇÕES DE EXIBIÇÃO ===================
-
+# =================== FUNÇÕES DE EXIBIÇÃO (Mantidas) ===================
+# ... (exibir_cabecalho, exibir_menu_principal, exibir_registro, etc.) ...
 def exibir_cabecalho():
     """Exibe o cabeçalho do sistema"""
     print("\n" + "=" * 60)
@@ -276,6 +404,7 @@ def exibir_menu_principal():
     print("5. 📈 Ver estatísticas gerais")
     print("6. 🚨 Informações de emergência")
     print("7. ❓ Ajuda e orientações")
+    print("8. 📱 Configurar WhatsApp/Alertas")  # Opção atualizada
     print("0. 🚪 Sair do sistema")
 
 
@@ -383,6 +512,7 @@ def exibir_ajuda():
     print("2. Consulte histórico e estatísticas")
     print("3. Filtre informações por risco ou região")
     print("4. Acesse informações de emergência quando necessário")
+    print("5. Configure WhatsApp para receber alertas automáticos (via Sandbox)")
 
     print("\n🎯 NÍVEIS DE RISCO:")
     print("🔴 CRÍTICO: Nível > 3m OU Chuva > 100mm")
@@ -390,9 +520,14 @@ def exibir_ajuda():
     print("🟡 MODERADO: Nível > 1m OU Chuva > 30mm")
     print("🟢 BAIXO: Demais situações")
 
+    print("\n📱 ALERTAS WHATSAPP (SANDBOX):")
+    print("• Configure sua conta Twilio e ative o WhatsApp Sandbox na opção 8")
+    print("• Alerta automático enviado para situações críticas (apenas para contatos que aderiram ao Sandbox)")
+    print("• Útil para testes e demonstrações, não para uso em produção real.")
 
-# =================== FUNÇÕES DE MENU ===================
 
+# =================== FUNÇÕES DE MENU (Mantidas) ===================
+# ... (menu_filtrar_risco, menu_buscar_regiao) ...
 def menu_filtrar_risco():
     """Menu para filtrar registros por nível de risco"""
     print("\n🔍 FILTRAR POR NÍVEL DE RISCO")
@@ -451,6 +586,7 @@ def main():
 
     exibir_cabecalho()
     print("💡 Sistema iniciado com dados de exemplo para demonstração.")
+    print("📱 Configure o WhatsApp Sandbox na opção 8 para testar alertas!")
 
     # Loop principal do sistema
     while True:
@@ -466,10 +602,14 @@ def main():
                 print(f"\n✅ Enchente registrada com sucesso!")
                 print(f"⚠️  Nível de risco calculado: {novo_registro.risco}")
 
-                # Alerta para situações críticas
+                # Alerta para situações críticas via WhatsApp
                 if novo_registro.risco == "CRÍTICO":
                     print("\n🚨 ATENÇÃO: SITUAÇÃO CRÍTICA DETECTADA!")
                     print("📞 Recomenda-se contato imediato com autoridades!")
+                    
+                    # Enviar WhatsApp automático para situações críticas
+                    print("\n📱 Enviando alerta WhatsApp (via Sandbox)...")
+                    enviar_alerta_critico_whatsapp(novo_registro)
 
         elif opcao == "2":
             # Visualizar todos os registros
@@ -494,6 +634,10 @@ def main():
         elif opcao == "7":
             # Ajuda
             exibir_ajuda()
+
+        elif opcao == "8":
+            # Configurar WhatsApp - Nova opção
+            configurar_twilio_whatsapp()
 
         elif opcao == "0":
             # Sair do sistema
